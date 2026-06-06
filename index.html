@@ -1,43 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Async Race</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Async Race</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header id="main-header">
+      <a class="logo" href="#">
+        <div class="logo-icon">
+          <svg
+            width="20"
+            height="10"
+            viewBox="0 0 20 10"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect x="1" y="4" width="17" height="5" rx="1.5" fill="#00e5ff" />
+            <rect x="4" y="1" width="10" height="5" rx="1.5" fill="#00e5ff" />
+            <circle cx="5" cy="9" r="2" fill="#08080f" stroke="#00e5ff" stroke-width="1" />
+            <circle cx="15" cy="9" r="2" fill="#08080f" stroke="#00e5ff" stroke-width="1" />
+          </svg>
+        </div>
+        <span class="logo-text">Async&nbsp;Race</span>
+      </a>
 
-  <header id="main-header">
-    <a class="logo" href="#">
-      <div class="logo-icon">
-        <svg width="20" height="10" viewBox="0 0 20 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1" y="4" width="17" height="5" rx="1.5" fill="#00e5ff"/>
-          <rect x="4" y="1" width="10" height="5" rx="1.5" fill="#00e5ff"/>
-          <circle cx="5" cy="9" r="2" fill="#08080f" stroke="#00e5ff" stroke-width="1"/>
-          <circle cx="15" cy="9" r="2" fill="#08080f" stroke="#00e5ff" stroke-width="1"/>
-        </svg>
-      </div>
-      <span class="logo-text">Async&nbsp;Race</span>
-    </a>
+      <div class="v-divider"></div>
 
-    <div class="v-divider"></div>
+      <nav>
+        <button class="nav-btn active" id="nav-garage" data-tab="garage">
+          Garage
+          <span class="nav-badge" id="badge-garage">5</span>
+        </button>
+        <button class="nav-btn" id="nav-winners" data-tab="winners">
+          Winners
+          <span class="nav-badge" id="badge-winners">3</span>
+        </button>
+      </nav>
+    </header>
 
-    <nav>
-      <button class="nav-btn active" id="nav-garage" data-tab="garage">
-        Garage
-        <span class="nav-badge" id="badge-garage">5</span>
-      </button>
-      <button class="nav-btn" id="nav-winners" data-tab="winners">
-        Winners
-        <span class="nav-badge" id="badge-winners">3</span>
-      </button>
-    </nav>
-  </header>
-
-  <script src="app.js"></script>
-</body>
+    <script type="module" src="app.js"></script>
+  </body>
 </html>

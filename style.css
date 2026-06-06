@@ -1,20 +1,22 @@
 /* ─── RESET & VARIABLES ─── */
-*, *::before, *::after { 
-  box-sizing: border-box; 
-  margin: 0; 
-  padding: 0; 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 :root {
-  --bg:       #08080f;
-  --surface:  #0f0f1a;
-  --border:   #1e1e30;
-  --accent:   #00e5ff;
-  --accent2:  #ff4d4d;
-  --text:     #e2e2f0;
-  --muted:    #5a5a80;
-  --muted2:   #3a3a58;
-  --glow:     0 0 12px rgba(0, 229, 255, 0.6);
+  --bg: #08080f;
+  --surface: #0f0f1a;
+  --border: #1e1e30;
+  --accent: #00e5ff;
+  --accent2: #ff4d4d;
+  --text: #e2e2f0;
+  --muted: #5a5a80;
+  --muted2: #3a3a58;
+  --glow: 0 0 12px rgba(0, 229, 255, 0.6);
 }
 
 body {
@@ -51,7 +53,9 @@ header {
 header::before {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 3px;
   background: linear-gradient(180deg, var(--accent), transparent);
   box-shadow: var(--glow);
@@ -76,7 +80,9 @@ header::before {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  box-shadow: inset var(--glow), var(--glow);
+  box-shadow:
+    inset var(--glow),
+    var(--glow);
   transition: transform 0.3s ease;
 }
 
@@ -90,7 +96,10 @@ header::before {
   inset: 0;
   background: rgba(0, 229, 255, 0.06);
 }
-.logo-icon svg { position: relative; z-index: 1; }
+.logo-icon svg {
+  position: relative;
+  z-index: 1;
+}
 
 .logo-text {
   font-family: 'Orbitron', monospace;
@@ -108,7 +117,8 @@ header::before {
   content: '';
   position: absolute;
   bottom: -4px;
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   height: 2px;
   background: var(--accent);
   box-shadow: var(--glow);
@@ -154,15 +164,17 @@ nav {
   inset: 0;
   border-radius: 6px;
   border: 1px solid transparent;
-  transition: border-color 0.3s, background 0.3s;
+  transition:
+    border-color 0.3s,
+    background 0.3s;
 }
 
-.nav-btn:hover { 
-  color: var(--text); 
+.nav-btn:hover {
+  color: var(--text);
 }
 
-.nav-btn:hover::before { 
-  border-color: var(--muted2); 
+.nav-btn:hover::before {
+  border-color: var(--muted2);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -181,7 +193,9 @@ nav {
 .nav-btn.active::after {
   content: '';
   position: absolute;
-  bottom: -1px; left: 20px; right: 20px;
+  bottom: -1px;
+  left: 20px;
+  right: 20px;
   height: 2px;
   background: var(--accent);
   box-shadow: var(--glow);
@@ -202,7 +216,10 @@ nav {
   margin-left: 8px;
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    box-shadow 0.3s;
 }
 
 .nav-btn.active .nav-badge {
