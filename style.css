@@ -327,3 +327,51 @@ button {
   gap: 10px;
   align-items: center;
 }
+
+/* Winners Table Styles */
+.winners-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #222;
+  border-radius: 8px;
+  overflow: hidden;
+  color: #fff;
+}
+
+.winners-table th, .winners-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.winners-table th {
+  background-color: #151515;
+  color: #00e5ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.winners-table tbody tr:hover {
+  background-color: #2d2d2d;
+}
+
+.winners-table td {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+}
+
+/* Saralanadigan ustunlar uchun stil */
+.sortable-header {
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  user-select: none; /* Matn tanlanib qolmasligi uchun */
+}
+
+/* Kursor borganda neon yoki boshqa ajralib turuvchi rang berish */
+.sortable-header:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #00adb5 !important; /* Loyihangiz rangiga moslang */
+}

@@ -1,51 +1,43 @@
-function handleTabSwitch(tabName) {
-    const currentTab = tabName;
-    if (currentTab) {
-        // Airbnb talabi uchun o'zgaruvchidan foydalanib qo'ydik
-    }
-}
-function initNavigation() {
-    const navButtons = document.querySelectorAll('.nav-btn');
-    navButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            navButtons.forEach((btn) => btn.classList.remove('active'));
-            button.classList.add('active');
-            const tabName = button.getAttribute('data-tab') ?? '';
-            handleTabSwitch(tabName);
-        });
-    });
-}
-export default function setBadge(tab, count) {
-    const badge = document.getElementById(`badge-${tab}`);
-    if (badge) {
-        badge.textContent = String(count);
-    }
-}
-document.addEventListener('DOMContentLoaded', () => {
-    initNavigation();
-});
-
 // ==========================================
-// CONFIGURATION & CONSTANTS
+// 1. CONFIGURATION & CONSTANTS
 // ==========================================
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://localhost:3000'; // Oxirida slashe bo'lmasligi shart!
 const CARS_PER_PAGE = 7;
+const WINNERS_PER_PAGE = 10;
 
-const CAR_BRANDS = ['Tesla', 'BMW', 'Audi', 'Mercedes', 'Toyota', 'Ford', 'Chevrolet', 'Hyundai'];
-const CAR_MODELS = ['Model S', 'M5', 'A6', 'C-Class', 'Camry', 'Mustang', 'Camaro', 'Sonata'];
+const CAR_BRANDS = ['Tesla', 'BMW', 'Audi', 'Mercedes', 'Toyota', 'Ford', 'Chevrolet', 'Hyundai', 'Nissan', 'Porsche', 'Honda'];
+const CAR_MODELS = ['Model S', 'M5', 'A6', 'C-Class', 'Camry', 'Mustang', 'Camaro', 'Sonata', 'Civic', '911 Carrera', 'GT-R'];
 
 // State Management
+let currentTab = 'garage'; 
 let currentPage = 1;
 let totalCars = 0;
+let totalWinners = 0;
 let selectedCarId = null;
 let currentCarsList = [];
 
+// Poyga holatlari
+let isRaceOngoing = false;
+let raceWinnerDefined = false;
+let viewAbortController = null;
+
+const animationFrames = {}; 
+
+let sortField = 'id';
+let sortOrder = 'ASC';
+
 // ==========================================
-// DOM ELEMENTS
+// 2. DOM ELEMENTS
 // ==========================================
 const elements = {
+  garageView: document.getElementById('garage-view'),
+  winnersView: document.getElementById('winners-view'),
   garageTitle: document.getElementById('garage-title'),
+  winnersTitle: document.getElementById('winners-title'),
   tracksContainer: document.getElementById('tracks-container'),
+  winnersTableBody: document.getElementById('winners-table-body'),
+  badgeGarage: document.getElementById('badge-garage'),
+  badgeWinners: document.getElementById('badge-winners'),
   createName: document.getElementById('create-name'),
   createColor: document.getElementById('create-color'),
   btnCreate: document.getElementById('btn-create'),
@@ -58,19 +50,25 @@ const elements = {
   btnPrev: document.getElementById('btn-prev'),
   btnNext: document.getElementById('btn-next'),
   pageInfo: document.getElementById('page-info'),
+  sortWins: document.getElementById('sort-wins'),
+  sortTime: document.getElementById('sort-time'),
 };
 
 // ==========================================
-// API SERVICE LAYER
+// 3. CENTRALIZED API SERVICE LAYER
 // ==========================================
 const apiService = {
-  async getCars(page) {
-    const res = await fetch(`${API_URL}/garage?_page=${page}&_limit=${CARS_PER_PAGE}`);
+  async getCars(page, signal) {
+    const res = await fetch(`${API_URL}/garage?_page=${page}&_limit=${CARS_PER_PAGE}`, { signal });
     if (!res.ok) throw new Error('Mashinalarni yuklab boʻlmadi');
     return {
       cars: await res.json(),
       totalCount: Number(res.headers.get('X-Total-Count')) || 0
     };
+  },
+  async getCar(id) {
+    const res = await fetch(`${API_URL}/garage/${id}`);
+    return res.ok ? await res.json() : { name: 'Unknown', color: '#000000' };
   },
   async createCar(name, color) {
     return fetch(`${API_URL}/garage`, {
@@ -87,29 +85,107 @@ const apiService = {
     });
   },
   async deleteCar(id) {
+    await fetch(`${API_URL}/winners/${id}`, { method: 'DELETE' }).catch(() => {}); 
     return fetch(`${API_URL}/garage/${id}`, { method: 'DELETE' });
   },
   async toggleEngine(id, status) {
-    const res = await fetch(`${API_URL}/engine?id=${id}&status=${status}`, { method: 'PATCH' });
-    return res;
+    return fetch(`${API_URL}/engine?id=${id}&status=${status}`, { method: 'PATCH' });
+  },
+  async getWinners(page, sort = 'id', order = 'ASC', signal) {
+    const res = await fetch(`${API_URL}/winners?_page=${page}&_limit=${WINNERS_PER_PAGE}&_sort=${sort}&_order=${order}`, { signal });
+    if (!res.ok) throw new Error('Gʻoliblarni yuklab boʻlmadi');
+    return {
+      winners: await res.json(),
+      totalCount: Number(res.headers.get('X-Total-Count')) || 0
+    };
+  },
+  async saveWinner(id, time) {
+    try {
+      const res = await fetch(`${API_URL}/winners/${id}`);
+      if (res.status === 200) {
+        const currentWinner = await res.json();
+        const updatedWins = currentWinner.wins + 1;
+        const updatedTime = time < currentWinner.time ? time : currentWinner.time;
+        return await fetch(`${API_URL}/winners/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wins: updatedWins, time: updatedTime })
+        });
+      } else {
+        return await fetch(`${API_URL}/winners`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, wins: 1, time })
+        });
+      }
+    } catch (error) {
+      return await fetch(`${API_URL}/winners`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, wins: 1, time })
+      });
+    }
   }
 };
 
 // ==========================================
-// CORE FUNCTIONS (LOGIC & RENDER)
+// 4. RENDERING & UI CORE
 // ==========================================
-async function loadGarage() {
+async function loadGarage(signal) {
   try {
-    const { cars, totalCount } = await apiService.getCars(currentPage);
-    currentCarsList = cars;
+    const { cars, totalCount } = await apiService.getCars(currentPage, signal);
+    if (signal && signal.aborted) return;
+
+    currentCarsList = Array.isArray(cars) ? cars : [];
     totalCars = totalCount;
     
-    elements.garageTitle.innerText = `Garage (${totalCars})`;
+    if (elements.garageTitle) elements.garageTitle.innerText = `Garage (${totalCars})`;
+    if (elements.badgeGarage) elements.badgeGarage.innerText = totalCars;
     renderTracks();
     updatePagination();
   } catch (err) {
-    console.error(err.message);
+    if (err.name !== 'AbortError') console.error(err.message);
   }
+}
+
+async function loadWinners(signal) {
+  try {
+    const { winners, totalCount } = await apiService.getWinners(currentPage, sortField, sortOrder, signal);
+    if (signal && signal.aborted) return;
+
+    totalWinners = totalCount;
+    if (elements.winnersTitle) elements.winnersTitle.innerText = `Winners (${totalWinners})`;
+    if (elements.badgeWinners) elements.badgeWinners.innerText = totalWinners;
+
+    elements.winnersTableBody.innerHTML = '';
+    updateSortArrows();
+
+    const winnersList = Array.isArray(winners) ? winners : [];
+    for (let i = 0; i < winnersList.length; i++) {
+      if (signal && signal.aborted) return;
+      const winner = winnersList[i];
+      const carData = await apiService.getCar(winner.id);
+      const rowNumber = (currentPage - 1) * WINNERS_PER_PAGE + i + 1;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${rowNumber}</td>
+        <td style="width: 80px; height: 35px;">${getCarSVG(carData.color)}</td>
+        <td>${carData.name}</td>
+        <td>${winner.wins}</td>
+        <td>${winner.time}s</td>
+      `;
+      elements.winnersTableBody.appendChild(tr);
+    }
+    updatePagination();
+  } catch (err) {
+    if (err.name !== 'AbortError') console.error(err.message);
+  }
+}
+
+function updateSortArrows() {
+  if (elements.sortWins) elements.sortWins.innerHTML = `Number of wins ${sortField === 'wins' ? (sortOrder === 'ASC' ? '▲' : '▼') : ''}`;
+  if (elements.sortTime) elements.sortTime.innerHTML = `Best time (sec) ${sortField === 'time' ? (sortOrder === 'ASC' ? '▲' : '▼') : ''}`;
 }
 
 function getCarSVG(color) {
@@ -126,22 +202,26 @@ function getCarSVG(color) {
 
 function renderTracks() {
   elements.tracksContainer.innerHTML = '';
+  if (currentCarsList.length === 0) {
+    elements.tracksContainer.innerHTML = `<div style="text-align:center; padding:40px; color:#888;">🚗 No Cars Available.</div>`;
+    return;
+  }
 
   currentCarsList.forEach(car => {
     const trackRow = document.createElement('div');
     trackRow.className = 'track-row';
-
+    trackRow.setAttribute('id', `track-row-${car.id}`);
     trackRow.innerHTML = `
       <div class="car-management">
-        <button class="btn-select" style="font-size:12px; background:#666; color:#fff;">Select</button>
-        <button class="btn-delete" style="font-size:12px; background:#dc3545; color:white;">Remove</button>
+        <button class="btn-select action-lockable" style="font-size:12px; background:#666; color:#fff;">Select</button>
+        <button class="btn-delete action-lockable" style="font-size:12px; background:#dc3545; color:white;">Remove</button>
         <strong style="color: #00adb5; margin-left: 10px;">${car.name}</strong>
       </div>
       <div class="race-track">
-        <button class="btn-start btn-green" style="padding: 6px 12px; font-size: 12px;">Race</button>
-        <button class="btn-stop btn-red" style="padding: 6px 12px; font-size: 12px;" disabled>Stop</button>
+        <button class="btn-start btn-green" id="start-engine-${car.id}" style="padding: 6px 12px; font-size: 12px;">Race</button>
+        <button class="btn-stop btn-red" id="stop-engine-${car.id}" style="padding: 6px 12px; font-size: 12px;" disabled>Stop</button>
         <div class="track-line" id="line-${car.id}">
-          <div class="car-container" id="car-${car.id}" style="width: 80px; height: 40px; position: absolute; left: 0;">
+          <div class="car-container" id="car-${car.id}" style="width: 80px; height: 40px; position: absolute; left: 0; transform: translateX(0px);">
             ${getCarSVG(car.color)}
           </div>
           <div class="dots"></div>
@@ -149,110 +229,272 @@ function renderTracks() {
         </div>
       </div>
     `;
-
-    // Tugmalarga hodisalarni xavfsiz biriktirish (No window global pollution)
     trackRow.querySelector('.btn-select').addEventListener('click', () => handleSelectCar(car));
     trackRow.querySelector('.btn-delete').addEventListener('click', () => handleDeleteCar(car.id));
     trackRow.querySelector('.btn-start').addEventListener('click', () => startSingleRace(car.id));
     trackRow.querySelector('.btn-stop').addEventListener('click', () => stopSingleRace(car.id));
-
     elements.tracksContainer.appendChild(trackRow);
   });
+
+  if (isRaceOngoing) setRaceActionsLock(true);
 }
 
 // ==========================================
-// POYGA SIMULYATSIYASI
+// 5. ANIMATION ENGINE (Fluid & Dynamic)
 // ==========================================
+function animateCarRequest(id, duration) {
+  const carElement = document.getElementById(`car-${id}`);
+  const trackLine = document.getElementById(`line-${id}`);
+  if (!carElement || !trackLine) return;
+
+  const startTimestamp = performance.now();
+  const maxDistance = trackLine.clientWidth - 110; 
+
+  function step(now) {
+    if (!animationFrames[id]) return; 
+
+    const elapsed = now - startTimestamp;
+    const progress = Math.min(elapsed / duration, 1);
+    const currentPosition = progress * maxDistance;
+
+    carElement.style.transform = `translateX(${currentPosition}px)`;
+
+    if (progress < 1) {
+      animationFrames[id] = requestAnimationFrame(step);
+    } else {
+      animationFrames[id] = null;
+    }
+  }
+
+  animationFrames[id] = requestAnimationFrame(step);
+}
+
 async function startSingleRace(id) {
-  const btnStart = document.getElementById(`line-${id}`).closest('.race-track').querySelector('.btn-start');
-  const btnStop = document.getElementById(`line-${id}`).closest('.race-track').querySelector('.btn-stop');
-  
+  const btnStart = document.getElementById(`start-engine-${id}`);
+  const btnStop = document.getElementById(`stop-engine-${id}`);
+
+  if (!btnStart || !btnStop) return;
+
   btnStart.disabled = true;
   btnStop.disabled = false;
 
   try {
     const startRes = await apiService.toggleEngine(id, 'started');
+
+    if (!startRes.ok) {
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      return;
+    }
+
     const { velocity, distance } = await startRes.json();
     const duration = distance / velocity;
+    const timeInSeconds = Number((duration / 1000).toFixed(2));
 
-    const carElement = document.getElementById(`car-${id}`);
-    const trackLine = document.getElementById(`line-${id}`);
-    const travelDistance = trackLine.clientWidth - 120; // 80px car + bufer
+    animateCarRequest(id, duration);
 
-    carElement.style.transition = `transform ${duration}ms linear`;
-    carElement.style.transform = `translateX(${travelDistance}px)`;
+    const drivePromise = apiService.toggleEngine(id, 'drive');
 
-    // Drive holati tekshiruvi (Dvigatel buzilish xavfi)
-    const driveRes = await apiService.toggleEngine(id, 'drive');
-    if (driveRes.status === 500) {
-      const computedStyle = window.getComputedStyle(carElement);
-      const matrix = new WebKitCSSMatrix(computedStyle.transform);
-      carElement.style.transition = 'none';
-      carElement.style.transform = `translateX(${matrix.m41}px)`;
-    }
+    // Poyga jarayonini va motor holatini tekshirish zanjiri
+    await new Promise(async (resolve) => {
+      const timeoutId = setTimeout(() => {
+        if (isRaceOngoing && !raceWinnerDefined) {
+          raceWinnerDefined = true;
+          apiService.getCar(id).then(async (carData) => {
+            alert(`🏆 WINNER: ${carData.name} (${timeInSeconds}s)`);
+            await apiService.saveWinner(id, timeInSeconds);
+          });
+        }
+        resolve('finished');
+      }, duration);
+
+      try {
+        const driveRes = await drivePromise;
+        if (driveRes.status === 500) {
+          clearTimeout(timeoutId);
+          if (animationFrames[id]) cancelAnimationFrame(animationFrames[id]);
+          animationFrames[id] = null;
+          console.log(`Car [ID: ${id}] engine broke down!`);
+          resolve('broken');
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        resolve('error');
+      }
+    });
+
   } catch (err) {
     console.error(err);
+    btnStart.disabled = false;
+    btnStop.disabled = true;
   }
 }
 
 async function stopSingleRace(id) {
-  const btnStart = document.getElementById(`line-${id}`).closest('.race-track').querySelector('.btn-start');
-  const btnStop = document.getElementById(`line-${id}`).closest('.race-track').querySelector('.btn-stop');
-  
-  btnStart.disabled = false;
-  btnStop.disabled = true;
+  const btnStart = document.getElementById(`start-engine-${id}`);
+  const btnStop = document.getElementById(`stop-engine-${id}`);
+  const carElement = document.getElementById(`car-${id}`);
+
+  if (animationFrames[id]) {
+    cancelAnimationFrame(animationFrames[id]);
+    animationFrames[id] = null;
+  }
 
   try {
     await apiService.toggleEngine(id, 'stopped');
-    const carElement = document.getElementById(`car-${id}`);
-    carElement.style.transition = 'none';
-    carElement.style.transform = 'translateX(0px)';
+    if (carElement) carElement.style.transform = 'translateX(0px)';
+    if (btnStart) btnStart.disabled = false;
+    if (btnStop) btnStop.disabled = true;
   } catch (err) {
     console.error(err);
   }
 }
 
 // ==========================================
-// EVENT HANDLERS & CRUD
+// 6. ACTIONS DURING THE RACE (Locking)
 // ==========================================
+function setRaceActionsLock(isLock) {
+  const lockableElements = document.querySelectorAll('.action-lockable');
+  lockableElements.forEach(el => el.disabled = isLock);
+  
+  elements.createName.disabled = isLock;
+  elements.btnCreate.disabled = isLock;
+  elements.btnGenerate.disabled = isLock;
+  elements.btnPrev.disabled = isLock;
+  elements.btnNext.disabled = isLock;
+
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => btn.style.pointerEvents = isLock ? 'none' : 'auto');
+
+  if (!isLock) updatePagination();
+}
+
+// ==========================================
+// 7. EVENT HANDLERS & TAB SWITCH
+// ==========================================
+function handleTabSwitch(tabName) {
+  if (viewAbortController) {
+    viewAbortController.abort();
+  }
+  
+  viewAbortController = new AbortController();
+  const { signal } = viewAbortController;
+
+  currentTab = tabName;
+  currentPage = 1; 
+
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => {
+    if (btn.getAttribute('data-tab') === tabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  if (currentTab === 'garage') {
+    elements.garageView.style.display = 'block';
+    elements.winnersView.style.display = 'none';
+    loadGarage(signal);
+  } else {
+    elements.garageView.style.display = 'none';
+    elements.winnersView.style.display = 'block';
+    loadWinners(signal);
+  }
+}
+
+function toggleSort(field) {
+  if (sortField === field) {
+    sortOrder = sortOrder === 'ASC' ? 'DESC' : 'ASC';
+  } else {
+    sortField = field;
+    sortOrder = 'ASC';
+  }
+  currentPage = 1; 
+  loadWinners(viewAbortController?.signal);
+}
+
+function initNavigation() {
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const tabName = button.getAttribute('data-tab') ?? 'garage';
+      handleTabSwitch(tabName);
+    });
+  });
+
+  if (elements.sortWins) elements.sortWins.addEventListener('click', () => toggleSort('wins'));
+  if (elements.sortTime) elements.sortTime.addEventListener('click', () => toggleSort('time'));
+}
+
 function handleSelectCar(car) {
   selectedCarId = car.id;
   elements.updateName.value = car.name;
   elements.updateColor.value = car.color;
-  
   elements.updateName.disabled = false;
   elements.updateColor.disabled = false;
   elements.btnUpdate.disabled = false;
 }
 
 async function handleDeleteCar(id) {
+  if (animationFrames[id]) cancelAnimationFrame(animationFrames[id]);
   await apiService.deleteCar(id);
-  loadGarage();
+  if (currentCarsList.length === 1 && currentPage > 1) currentPage--;
+  loadGarage(viewAbortController?.signal);
 }
+
+// Ommaviy Poyga boshlash
+elements.btnRace.addEventListener('click', async () => {
+  if (currentCarsList.length === 0) return;
+  
+  isRaceOngoing = true;
+  raceWinnerDefined = false;
+  elements.btnRace.disabled = true;
+  elements.btnReset.disabled = false;
+
+  setRaceActionsLock(true);
+  
+  // Barcha mashinalarni yurgizamiz va ularning yakunlanishini kutamiz
+  const racePromises = currentCarsList.map(car => startSingleRace(car.id));
+  await Promise.allSettled(racePromises);
+
+  // Poyga tugadi -> Navigatsiyani ochamiz!
+  isRaceOngoing = false;
+  setRaceActionsLock(false);
+  elements.btnRace.disabled = false;
+});
+
+// Ommaviy Reset
+elements.btnReset.addEventListener('click', () => {
+  isRaceOngoing = false;
+  raceWinnerDefined = false;
+  elements.btnRace.disabled = false;
+  elements.btnReset.disabled = true;
+
+  setRaceActionsLock(false);
+  currentCarsList.forEach(car => stopSingleRace(car.id));
+});
 
 elements.btnCreate.addEventListener('click', async () => {
   const name = elements.createName.value.trim();
   const color = elements.createColor.value;
-  if (!name) return;
-
+  if (!name || name.length > 25) return;
   await apiService.createCar(name, color);
   elements.createName.value = '';
-  loadGarage();
+  loadGarage(viewAbortController?.signal);
 });
 
 elements.btnUpdate.addEventListener('click', async () => {
   if (!selectedCarId) return;
   const name = elements.updateName.value.trim();
-  const color = elements.updateColor.value;
-
-  await apiService.updateCar(selectedCarId, name, color);
-  
+  if (!name || name.length > 25) return;
+  await apiService.updateCar(selectedCarId, name, elements.updateColor.value);
   elements.updateName.value = '';
   elements.updateName.disabled = true;
   elements.updateColor.disabled = true;
   elements.btnUpdate.disabled = true;
   selectedCarId = null;
-  loadGarage();
+  loadGarage(viewAbortController?.signal);
 });
 
 elements.btnGenerate.addEventListener('click', async () => {
@@ -262,36 +504,49 @@ elements.btnGenerate.addEventListener('click', async () => {
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     return apiService.createCar(`${brand} ${model}`, color);
   });
-
   await Promise.all(promises);
-  loadGarage();
+  loadGarage(viewAbortController?.signal);
 });
 
 // ==========================================
-// GLOBAL CONTROLS & PAGINATION
+// 8. PAGINATION LOGIC
 // ==========================================
-elements.btnRace.addEventListener('click', () => {
-  currentCarsList.forEach(car => startSingleRace(car.id));
-});
-
-elements.btnReset.addEventListener('click', () => {
-  currentCarsList.forEach(car => stopSingleRace(car.id));
-});
-
 function updatePagination() {
-  const totalPages = Math.ceil(totalCars / CARS_PER_PAGE) || 1;
+  if (isRaceOngoing) return; 
+
+  const limit = currentTab === 'garage' ? CARS_PER_PAGE : WINNERS_PER_PAGE;
+  const total = currentTab === 'garage' ? totalCars : totalWinners;
+  const totalPages = Math.ceil(total / limit) || 1;
+
   elements.pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
   elements.btnPrev.disabled = currentPage === 1;
-  elements.btnNext.disabled = currentPage === totalPages || totalCars === 0;
+  elements.btnNext.disabled = currentPage === totalPages || total === 0;
 }
 
 elements.btnPrev.addEventListener('click', () => {
-  if (currentPage > 1) { currentPage--; loadGarage(); }
+  if (currentPage > 1 && !isRaceOngoing) {
+    currentPage--;
+    const signal = viewAbortController?.signal;
+    currentTab === 'garage' ? loadGarage(signal) : loadWinners(signal);
+  }
 });
 
 elements.btnNext.addEventListener('click', () => {
-  if (currentPage < Math.ceil(totalCars / CARS_PER_PAGE)) { currentPage++; loadGarage(); }
+  const limit = currentTab === 'garage' ? CARS_PER_PAGE : WINNERS_PER_PAGE;
+  const total = currentTab === 'garage' ? totalCars : totalWinners;
+  if (currentPage < Math.ceil(total / limit) && !isRaceOngoing) {
+    currentPage++;
+    const signal = viewAbortController?.signal;
+    currentTab === 'garage' ? loadGarage(signal) : loadWinners(signal);
+  }
 });
 
-// Start Dastur
-loadGarage();
+// Dasturni ishga tushirish
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  viewAbortController = new AbortController();
+  loadGarage(viewAbortController.signal);
+  apiService.getWinners(1, sortField, sortOrder, viewAbortController.signal).then(res => {
+    if (elements.badgeWinners) elements.badgeWinners.innerText = res.totalCount;
+  }).catch(err => console.error(err));
+});

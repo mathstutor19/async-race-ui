@@ -6,23 +6,14 @@
     <title>Async Race</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header id="main-header">
       <a class="logo" href="#">
         <div class="logo-icon">
-          <svg
-            width="20"
-            height="10"
-            viewBox="0 0 20 10"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg width="20" height="10" viewBox="0 0 20 10" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="4" width="17" height="5" rx="1.5" fill="#00e5ff" />
             <rect x="4" y="1" width="10" height="5" rx="1.5" fill="#00e5ff" />
             <circle cx="5" cy="9" r="2" fill="#08080f" stroke="#00e5ff" stroke-width="1" />
@@ -36,49 +27,65 @@
 
       <nav>
         <button class="nav-btn active" id="nav-garage" data-tab="garage">
-          Garage
-          <span class="nav-badge" id="badge-garage">5</span>
+          Garage <span class="nav-badge" id="badge-garage">0</span>
         </button>
         <button class="nav-btn" id="nav-winners" data-tab="winners">
-          Winners
-          <span class="nav-badge" id="badge-winners">3</span>
+          Winners <span class="nav-badge" id="badge-winners">0</span>
         </button>
       </nav>
     </header>
+
     <div class="container">
-    <h2 id="garage-title">Garage (0)</h2>
+      <div id="garage-view">
+        <h2 id="garage-title">Garage (0)</h2>
 
-    <div class="panels-container">
-      <div class="panel-box">
-        <h3>Create Car</h3>
-        <input type="text" id="create-name" placeholder="Car name">
-        <input type="color" id="create-color" value="#000000">
-        <button id="btn-create">Create</button>
+        <div class="panels-container">
+          <div class="panel-box">
+            <h3>Create Car</h3>
+            <input type="text" id="create-name" placeholder="Car name">
+            <input type="color" id="create-color" value="#000000">
+            <button id="btn-create">Create</button>
+          </div>
+
+          <div class="panel-box">
+            <h3>Update Car</h3>
+            <input type="text" id="update-name" placeholder="Select a car first" disabled>
+            <input type="color" id="update-color" value="#000000" disabled>
+            <button id="btn-update" disabled>Update</button>
+          </div>
+        </div>
+
+        <div class="control-panel">
+          <button id="btn-race" class="btn-green">RACE</button>
+          <button id="btn-reset" class="btn-red">RESET</button>
+          <button id="btn-generate" class="btn-blue">GENERATE 100 CARS</button>
+        </div>
+
+        <div id="tracks-container"></div>
       </div>
 
-      <div class="panel-box">
-        <h3>Update Car</h3>
-        <input type="text" id="update-name" placeholder="Select a car first" disabled>
-        <input type="color" id="update-color" value="#000000" disabled>
-        <button id="btn-update" disabled>Update</button>
-      </div>
-    </div>
+      <div id="winners-view" style="display: none;">
+  <h2 id="winners-title">Winners (0)</h2>
+  <table class="winners-table">
+    <thead>
+      <tr>
+        <th>Car number</th>
+        <th>Car icon</th>
+        <th>Name</th>
+        <th id="sort-wins" class="sortable-header">Number of wins</th>
+        <th id="sort-time" class="sortable-header">Best time (sec)</th>
+      </tr>
+    </thead>
+    <tbody id="winners-table-body">
+    </tbody>
+  </table>
+</div>
 
-    <div class="control-panel">
-      <button id="btn-race" class="btn-green">RACE</button>
-      <button id="btn-reset" class="btn-red">RESET</button>
-      <button id="btn-generate" class="btn-blue">GENERATE 100 CARS</button>
-    </div>
-
-    <div id="tracks-container">
-      </div>
-
-    <div class="pagination">
-      <button id="btn-prev" disabled>Prev</button>
-      <span id="page-info">Page 1 of 1</span>
-      <button id="btn-next" disabled>Next</button>
-    </div>
-  </div>
+<div class="pagination">
+  <button id="btn-prev" disabled>Prev</button>
+  <span id="page-info">Page 1 of 1</span>
+  <button id="btn-next" disabled>Next</button>
+</div>
 
     <script type="module" src="app.js"></script>
   </body>
